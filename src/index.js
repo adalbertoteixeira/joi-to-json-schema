@@ -207,18 +207,18 @@ let TYPES = {
  * @param {TransformFunction} [transformer=null]
  * @returns {JSONSchema}
  */
-export default function convert(joi,transformer=null,convertToAny) {
+export default function convert(joi,transformer=null,convertToAny=false) {
 
   assert('object'===typeof joi && true === joi.isJoi, 'requires a joi schema object');
 
   assert(joi._type, 'joi schema object must have a type');
 
-  if(convertToAny) {
-    joi._type = any
-  }
-
   if(!TYPES[joi._type]){
-    throw new Error(`sorry, do not know how to convert unknown joi type: "${joi._type}"`);
+    if(convertToAny) {
+      joi._type = 'any';
+    } else {
+      throw new Error(`sorry, do not know how to convert unknown joi type: "${joi._type}"`);
+    }
   }
 
   if(transformer){
