@@ -4,14 +4,14 @@ import assert from 'assert';
 
 let TYPES = {
 
-  alternatives: (schema, joi) => {
+  alternatives: (schema, joi, convertToAny) => {
 
     var result = schema.oneOf = [];
 
     joi._inner.matches.forEach(function (match) {
 
       if (match.schema) {
-        return result.push(convert(match.schema));
+        return result.push(convert(match.schema, null, convertToAny));
       }
 
       if (!match.is) {
@@ -22,11 +22,11 @@ let TYPES = {
       }
 
       if (match.then) {
-        result.push(convert(match.then));
+        result.push(convert(match.then, null, convertToAny));
       }
 
       if (match.otherwise) {
-        result.push(convert(match.otherwise));
+        result.push(convert(match.otherwise, null, convertToAny));
       }
 
     });
@@ -44,6 +44,11 @@ let TYPES = {
     return schema;
   },
 
+  objectId: (schema, joi) => {
+    schema.type = 'string';
+    return schema;
+  },
+
   any: (schema) => {
     schema.type = [
       "array",
@@ -56,7 +61,7 @@ let TYPES = {
     return schema;
   },
 
-  array: (schema, joi) => {
+  array: (schema, joi, convertToAny) => {
     schema.type = 'array';
 
     joi._tests.forEach((test) => {
@@ -78,7 +83,7 @@ let TYPES = {
 
     if (joi._inner) {
       if (joi._inner.ordereds.length) {
-        schema.ordered = joi._inner.ordereds.map((item) => convert(item));
+        schema.ordered = joi._inner.ordereds.map((item) => convert(item), null, convertToAny);
       }
 
       let list;
@@ -89,7 +94,7 @@ let TYPES = {
       }
 
       if (list) {
-        schema.items = convert(list[0]);
+        schema.items = convert(list[0], null, convertToAny);
       }
     }
 
@@ -168,12 +173,12 @@ let TYPES = {
     return schema;
   },
 
-  object: (schema, joi) => {
+  object: (schema, joi, convertToAny) => {
     schema.type = 'object';
     schema.properties = {};
     schema.additionalProperties = Boolean(joi._flags.allowUnknown);
     schema.patterns = joi._inner.patterns.map((pattern) => {
-      return {regex: pattern.regex, rule: convert(pattern.rule)};
+      return {regex: pattern.regex, rule: convert(pattern.rule, null, convertToAny)};
     });
 
     if (!joi._inner.children) {
@@ -182,7 +187,7 @@ let TYPES = {
 
     joi._inner.children.forEach((property) => {
       if(property.schema._flags.presence !== 'forbidden') {
-        schema.properties[property.key] = convert(property.schema);
+        schema.properties[property.key] = convert(property.schema, null, convertToAny);
         if (property.schema._flags.presence === 'required') {
           schema.required = schema.required || [];
           schema.required.push(property.key);
@@ -202,11 +207,15 @@ let TYPES = {
  * @param {TransformFunction} [transformer=null]
  * @returns {JSONSchema}
  */
-export default function convert(joi,transformer=null) {
+export default function convert(joi,transformer=null,convertToAny) {
 
   assert('object'===typeof joi && true === joi.isJoi, 'requires a joi schema object');
 
   assert(joi._type, 'joi schema object must have a type');
+
+  if(convertToAny) {
+    joi._type = any
+  }
 
   if(!TYPES[joi._type]){
     throw new Error(`sorry, do not know how to convert unknown joi type: "${joi._type}"`);
